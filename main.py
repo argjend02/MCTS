@@ -81,3 +81,19 @@ def best_move(root):
     Selects the move with the highest visit count after MCTS iterations.
     """
     return max(root.children, key=lambda x: x.visits).state
+
+def get_legal_moves(state):
+    """Returns a list of valid moves for the given board state."""
+    pass
+
+def apply_move(state, move):
+    """Applies a move to the board and returns the new state."""
+    pass
+
+def is_terminal(state):
+    """Checks if the game has ended (win/loss/draw)."""
+    pass
+
+def get_result(state):
+    """Returns the result of the game (1 for win, 0 for draw, -1 for loss)."""
+    pass
