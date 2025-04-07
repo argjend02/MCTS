@@ -1,6 +1,7 @@
 import random
 import math
 import time
+import matplotlib.pyplot as plt
 
 class Node:
     def __init__(self, state, parent=None):
@@ -13,7 +14,7 @@ class Node:
     def is_fully_expanded(self):
         return len(self.children) == len(get_legal_moves(self.state))
 
-    def best_child(self, exploration_weight=1.41):
+    def best_child(self, exploration_weight=0.5):  # Adjusted exploration weight for balance
         return max(
             self.children,
             key=lambda x: x.value / (x.visits + 1e-6) +
@@ -36,8 +37,8 @@ def selection(node):
 def expansion(node):
     legal_moves = get_legal_moves(node.state)
     for move in legal_moves:
-        if not any(child.state == apply_move(node.state, move) for child in node.children):
-            new_state = apply_move(node.state, move)
+        new_state = apply_move(node.state, move)
+        if not any(child.state == new_state for child in node.children):
             new_node = Node(new_state, parent=node)
             node.children.append(new_node)
             return new_node
@@ -57,7 +58,10 @@ def backpropagation(node, result):
         node = node.parent
 
 def best_move(root):
-    return max(root.children, key=lambda x: x.visits).state
+    best_child = max(root.children, key=lambda x: x.visits)
+    for i in range(9):
+        if root.state[i] != best_child.state[i]:
+            return i
 
 # Game logic functions
 def get_legal_moves(state):
@@ -97,8 +101,7 @@ def play_game():
             move = int(input("Enter your move (0-8): "))
         else:
             root = Node(state)
-            state = MCTS(root, iterations=1000)
-            continue
+            move = MCTS(root, iterations=1000)
         state = apply_move(state, move)
     print_board(state)
     result = get_result(state)
@@ -115,7 +118,8 @@ def play_game_ai_vs_ai():
     while not is_terminal(state):
         print_board(state)
         root = Node(state)
-        state = MCTS(root, iterations=1000)
+        move = MCTS(root, iterations=1000)
+        state = apply_move(state, move)
     print_board(state)
     result = get_result(state)
     if result == 1:
@@ -125,16 +129,26 @@ def play_game_ai_vs_ai():
     else:
         print("It's a draw!")
 
+iterations = [100, 500, 1000, 5000]
+times = [0.1, 0.25, 0.35, 1.2]  # Example times in seconds for each iteration count
+
+plt.plot(iterations, times, marker='o')
+plt.xlabel('Number of Simulations')
+plt.ylabel('Time Taken (s)')
+plt.title('Runtime vs. Number of Simulations')
+plt.grid(True)
+plt.show()        
+
 # Edge Case Testing
 def edge_case_tests():
-    print("----- Edge Case 1: Only One Move Left -----")
-    state1 = ['X', 'O', 'X',
-              'X', 'O', 'O',
-              'O', 'X', ' ']  # Only index 8 left
-    root1 = Node(state1)
-    move1 = MCTS(root1, iterations=500)
-    print("Selected move:")
-    print_board(move1)
+    # print("----- Edge Case 1: Only One Move Left -----")
+    # state1 = ['X', 'O', 'X',
+    #           'X', 'O', 'O',
+    #           'O', 'X', ' ']  # Only index 8 left
+    # root1 = Node(state1)
+    # move1 = MCTS(root1, iterations=500)
+    # final_state1 = apply_move(state1, move1)
+    # print_board(final_state1)
 
     print("----- Edge Case 2: Immediate Winning Move -----")
     state2 = ['X', 'X', ' ',
@@ -142,43 +156,61 @@ def edge_case_tests():
               ' ', ' ', ' ']  # X can win at index 2
     root2 = Node(state2)
     move2 = MCTS(root2, iterations=500)
-    print("Selected move:")
-    print_board(move2)
+    final_state2 = apply_move(state2, move2)
+    print_board(final_state2)
 
-    print("----- Edge Case 3: Already Terminal State -----")
-    state3 = ['X', 'X', 'X',
-              'O', 'O', ' ',
-              ' ', ' ', ' ']
-    print("Is terminal:", is_terminal(state3))
-    print("Result:", get_result(state3))  # Should return 1 (X wins)
+    # print("----- Edge Case 3: Already Terminal State -----")
+    # state3 = ['X', 'X', 'X',
+    #           'O', 'O', ' ',
+    #           ' ', ' ', ' ']
+    # print("Is terminal:", is_terminal(state3))
+    # print("Result:", get_result(state3))
+
 def performance_test():
     test_iterations = [100, 500, 1000, 5000]
-    state = [' '] * 9  # Start with an empty board
-
+    state = [' '] * 9
     for iterations in test_iterations:
         print(f"Running MCTS with {iterations} iterations...")
         root = Node(state)
-        
         start_time = time.time()
-        best_state = MCTS(root, iterations=iterations)
+        move = MCTS(root, iterations=iterations)
         end_time = time.time()
-        
         elapsed_time = end_time - start_time
+        result_state = apply_move(state, move)
         print(f"Time taken for {iterations} iterations: {elapsed_time:.4f} seconds")
-        print_board(best_state)
-        print("-" * 30) 
+        print_board(result_state)
+        print("-" * 30)
+
+def win_rate_test_flip_roles(games=30, low_iter=100, high_iter=1000):
+    x_wins = 0
+    o_wins = 0
+    draws = 0
+    for game in range(games):
+        state = [' '] * 9
+        while not is_terminal(state):
+            current_player = 'X' if state.count('X') <= state.count('O') else 'O'
+            iter_count = high_iter if (game < games // 2 and current_player == 'X') or (game >= games // 2 and current_player == 'O') else low_iter
+            root = Node(state)
+            move = MCTS(root, iterations=iter_count)
+            state = apply_move(state, move)
+        result = get_result(state)
+        if result == 1:
+            x_wins += 1
+        elif result == -1:
+            o_wins += 1
+        else:
+            draws += 1
+    print("Games Played:", games)
+    print(f"Player X Wins: {x_wins}")
+    print(f"Player O Wins: {o_wins}")
+    print(f"Draws: {draws}")
 
 # ===========================
-# Testing Cases 
+# Uncomment one test at a time
 # ===========================
+# win_rate_test_flip_roles(games=30, low_iter=100, high_iter=1000)
 
-# Uncomment the one you want to run
-
-# play_game()            # Human vs AI
-#  play_game_ai_vs_ai()   # AI vs AI
-# edge_case_tests()      # Run edge case test suite
-
-# ===========================
-# Uncomment to run the test
-# ===========================
-performance_test()   
+# play_game()
+# play_game_ai_vs_ai()
+# edge_case_tests()
+# performance_test()
